@@ -343,10 +343,6 @@ shortenString<-function(string, length=10)
 # Return a measure for how similar strings are.
 stringSimilarity<-function(string, strings)
 {
-  # chars=list() with chars[[1]]=vector of characters for string
-  #                   chars[[-1]]=vector of characters for strings
-  #chars=strsplit(c(string, strings),'')
-  
   string=gsub("[[:punct:]]","", string)
   strings=gsub("[[:punct:]]","",strings)
   chars=strsplit(c(string, strings), ' ')
@@ -371,7 +367,7 @@ shinyServer(function(input, output, session){
   # character limit
   output$characterlimit<-renderText(
     {
-      x=unlist(strsplit(input$recipeInput, ''))#nchar(input$recipeInput)
+      x=unlist(strsplit(input$recipeInput, ''))
       newline_count=sum(x=='\n')
       char_count=2*newline_count+(length(x)-newline_count)
       if(char_count<250) # only show character limit if input has more than 250 characters
@@ -493,6 +489,7 @@ shinyServer(function(input, output, session){
                                            c(i,sprintf("%s - Database does not have matches using those units. Potential matches use: %s", 
                                                        paste(recipeMatrix()[i,1:3], collapse=''),
                                                        paste(unique(item_measurements), collapse=', '))))
+          return()
         }
         
         user_item=recipeMatrix()[i,'item']
@@ -520,7 +517,7 @@ shinyServer(function(input, output, session){
         )
       }
       
-      reactivevals$itemSelection=sapply(reactivevals$choiceList, function(x) x[1])#rep(1, length(reactivevals$factIndex))
+      reactivevals$itemSelection=sapply(reactivevals$choiceList, function(x) x[1])
       #reactivevals$serverBusy=FALSE
       return(nutritionFacts)
     })})
@@ -812,7 +809,7 @@ shinyServer(function(input, output, session){
         factMeasurements=paste(round(as.numeric(recipeMatrix()[factIndices, 'qty'])/servings,2), units)
         
         tmp[,-1]=round(apply(tmp[,-1], 2, as.numeric)/servings,2)
-        tmp=rbind(c("Quantity", ifelse(servings>1, paste(servings, 'servings'), paste(servings, 'serving')), factMeasurements), tmp)
+        tmp=rbind(c("Quantity", ifelse(servings>1, paste('1/', servings, ' servings', sep=''), paste('1/', servings, ' serving', sep='')), factMeasurements), tmp)
       }else{
         factMeasurements=paste(recipeMatrix()[factIndices, 'qty'], units)
         tmp[,-1]=round(apply(tmp[,-1], 2, as.numeric),2)
