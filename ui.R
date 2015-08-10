@@ -1,23 +1,25 @@
 library(shiny)
 library(DT)
 
-shinyUI(navbarPage("NutritionTrack",
-  tabPanel("How to use this site", wellPanel(
+shinyUI(navbarPage("myRecipeFacts",
+  tabPanel("How To", wellPanel(
+    h3("Nutrition tab"),
+    h6('These measurements currently use the United States (no U.K option yet) and metric system.'),
     h6('Enter a recipe and press the Submit button. If any items did not match the database, then errors will appear in red. You may continue normally, however the items in red will be excluded from the results.'),
     h6('The "Database Matches" tab contains dropdown lists for the items that were matched. You can use these to fix any matches that the system made.'),
     h6("Example input: 1 2/3 tbs cinnamon"),
-    h6("               2 eggs")
+    h6("               2 eggs"),
+    h3("Measurement Conversion tab"),
+    h6("This tab makes it easy to reduce the recipe to your desires. Want to scale down the recipe by 1/2, 1/4 or even scale up? Simply type in a number to the multiplier box."),
+    h6("You can rescale keeping the original recipe's measurements or make it automatically choose the smallest necessary measurement.")
     )),
   
   tabPanel("Nutrition",
            fluidRow(
              tabsetPanel("Your Recipe", id="recipeTab",
                          tabPanel("Your Recipe",
-                                  #actionButton("submit", label = "Submit"),
                                   uiOutput("submitButton"),
                                   textOutput("characterlimit"),
-                                  #column(12, actionButton("submit", label = "Submit"), textOutput("characterlimit")),
-                                  #column(4, tags$textarea(id="recipeInput", rows=10, cols=40, "",maxlength=500))
                                   tags$textarea(id="recipeInput", rows=10, cols=110, "", maxlength=750),
                                   verbatimTextOutput("errorMessages"),
                                   tags$head(tags$style("#errorMessages{color: red;
@@ -76,7 +78,18 @@ shinyUI(navbarPage("NutritionTrack",
            ) # fluidRow
   ), # tabPanel - "Nutrition"
                       
- # tabPanel("Measurement Conversion"),
+  tabPanel("Measurement Conversion",
+           fluidRow(
+             column(3, textInput("mc_scale", label="Multiply recipe by:", value=1))),
+           fluidRow(
+             column(3, actionButton("mc_submit", label = "Rescale (keep original units)")),
+             column(3, actionButton("mc_submit2", label = "Rescale (optimize units)"))
+           ),
+           fluidRow(
+             column(6, tags$textarea(id="mc_inputBox", rows=10, cols=60, "", maxlength=1500)),
+             column(6, verbatimTextOutput("test"))
+             )
+           ),
   
   tabPanel("About",
            fluidRow(
@@ -98,6 +111,7 @@ shinyUI(navbarPage("NutritionTrack",
               strong("Limitations"), helpText("The data comes from the Nutritionix API which has restrictions in place. One of these is that there is a limit to how many database searches are allowed through this site.
                                               Thus, if the site stops working due to this restriction, please try again the next day.")
              ),
+             helpText("Coded in R/Rstudio and ", a("shinyapps", href="http://shiny.rstudio.com/", target="_blank")),
              helpText("Data is provided by and thanks to", a("Nutritionix API", href="http://www.nutritionix.com/api", target="_blank"))
            )
   )

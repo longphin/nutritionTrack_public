@@ -1,23 +1,21 @@
-#setwd("~/Documents/codes/R/shinyapps")
 library(shiny)
 library(rPython)
 library(DT)
-#python.load("nutriTrack/main.py")
 python.load("main.py")
 
 DEBUG=FALSE
 # --------------------------------------------------------------------
 # global variables
 # --------------------------------------------------------------------
-knownVolumes=c("tsp","tbs","cup","pt","qt","gal","oz","L","mL")
+knownVolumes=c("tsp","tbs","cup","pt","qt","gal","floz","L","mL")
 knownVolumes_aliases=c(teaspoon="tsp", teaspoons="tsp",
                        tbsp="tbs", tablespoon="tbs", tablespoons="tbs",
                        cups="cup",
                        pint="pt", pints="pt",
                        quart="qt", quarts="qt", qrt="qt",
                        gallon="gal", gallons="gal",
-                       ounce="oz", ounces="oz",
-                       "fluid oz"="oz", 'fl oz'='oz',
+                       oz="floz", ounce="floz", ounces="floz",
+                       "fluid oz"="floz", 'fl oz'='floz',
                        liter="L", liters="L",
                        mililiter="mL", mililiters="mL")
 
@@ -68,21 +66,21 @@ createConversionMatrix<-function(mat){
   return(mat)
 }
 
-# knownVolumes=c("tsp","tbs","cup","pt","qt","gal","oz","L","mL")
+# known volumes
 mat=matrix(ncol=length(knownVolumes),nrow=length(knownVolumes), dimnames=list(knownVolumes,knownVolumes))
 diag(mat)=rep(1,length(knownVolumes))
 mat['tsp','tbs']=3
 mat['tbs','cup']=16
-mat['cup','oz']=1/8
+mat['cup','floz']=1/8
 mat['pt','cup']=1/2
 mat['qt','pt']=1/2
 mat['gal','qt']=1/4
-mat['gal','oz']=1/128
-mat['oz','L']=33.814
+mat['gal','floz']=1/128
+mat['floz','L']=33.814
 mat['L','mL']=1/1000
 volumeConversion=createConversionMatrix(mat)
 
-# knownWeights=c("g","kg","oz","lb")
+# known weights
 mat=matrix(ncol=length(knownWeights),nrow=length(knownWeights), dimnames=list(knownWeights,knownWeights))
 diag(mat)=rep(1,length(knownWeights))
 mat['g','kg']=1000
@@ -151,20 +149,21 @@ standardizeMeasurement<-function(measurement)
   return('')
 }
 
-# item (string)
-# Returns vector (qty, unit, item) info from input.
-getItemInfo <- function(item){
-  qty_regexpr="^([[:digit:]/\\+\\-\\*\\(\\) ¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]+) ?.*"
-  unit_regexpr="^([[:digit:]/\\+\\-\\*\\(\\) ]+) ?([^ ]+) ?.*"
-  item_regexpr="^([[:digit:]/\\+\\-\\*\\(\\) ]+) ?([^ ]+) ?(.*)"
-  item_regexpr_with_nonstandard_unit="^([[:digit:]/\\+\\-\\*\\(\\) ]+) ?(.*)"
+qty_regexpr="^([[:digit:]/\\+\\-\\*\\(\\) ¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]+) ?.*"
+unit_regexpr="^([[:digit:]/\\+\\-\\*\\(\\) ]+) ?([^ ]+) ?.*"
+item_regexpr="^([[:digit:]/\\+\\-\\*\\(\\) ]+) ?([^ ]+) ?(.*)"
+item_regexpr_with_nonstandard_unit="^([[:digit:]/\\+\\-\\*\\(\\) ]+) ?(.*)"
+cleanItemInput<-function(item)
+{
   item=gsub(" +$", "", gsub("^ +", "", item)) # remove trailing and leading whitespace
   item=sub("^pinch ", "1/8 tsp ", item, ignore.case=TRUE)
+  item=gsub("(fl oz)|(fl. oz)|(fluid ounce) ", "floz ", item)
   item=sub("^([[:digit:] ]*)\\(([[:digit:]]+)([^\\)]*)\\)", "(\\1)*\\2 \\3", item) # split up form 1 (8 oz) item -> 1*8 oz item
   item=sub("^([[:digit:] ]*)dozen", "\\1*12", item, ignore.case=TRUE)
-  itemInfo = character(3)
-  if(grepl(qty_regexpr, item)==FALSE)
-    return(c(item, paste(item, ' - Missing quantity.', collapse=''),"(Error)")) # improper input
+  return(item)
+}
+cleanItemUnit<-function(item)
+{
   tmp=gsub(qty_regexpr, "\\1", item)
   if(grepl("[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]", tmp)) # only do these many gsubs if necessary
   {
@@ -184,39 +183,31 @@ getItemInfo <- function(item){
     tmp=gsub("⅝", " 5/8 ", tmp)
     tmp=gsub("⅞", " 7/8 ", tmp)
   }
-  itemInfo[1]=try(as.character(mixedToFloat(tmp)))
+  return(tmp)
+}
+# item (string)
+# Returns vector (qty, unit, item) info from input.
+getItemInfo <- function(item){
+  item=cleanItemInput(item)
+  itemInfo=character(3)
+  if(grepl(qty_regexpr, item)==FALSE)
+    return(c(item, paste(item, ' - Missing quantity.', collapse=''),"(Error)")) # improper input
+  itemInfo[1]=try(as.character(mixedToFloat(cleanItemUnit(item))))
   if(inherits(itemInfo[1], "try-error")) # the conversion from character to float did not work
     return(c(item, paste(item, ' - Could not evaluate quantity.', collapse=''),"(Error)")) # unknown quantity
   
-#  if(grepl(unit_regexpr, item, ignore.case=TRUE)==FALSE)
-#    return(c('2a','Measurement is not known or standard.',"(Error)")) # improper measurement
-#  if(!grepl(unit_regexpr, item, ignore.case=TRUE)==FALSE){
-    tmp=gsub(unit_regexpr, "\\2", item, ignore.case=TRUE)
-    itemInfo[2]=standardizeMeasurement(tmp)
-    
-    if(itemInfo[2]!=''){ # item uses standard unit
-      tmp=gsub(item_regexpr, "\\3", item)
-    }else{ # item uses nonstandard unit, which is set to ''
-      tmp=gsub(item_regexpr_with_nonstandard_unit, "\\2", item)
-    }
-    
-    #if(grepl(item_regexpr, item)==FALSE)
-    #  return(c('3a','Missing item.',"(Error)")) # no item input
-    #tmp=gsub(item_regexpr, "\\3", item)
-#   }else{ # item has a nonstandard unit
-#     if(grepl(item_regexpr_with_nonstandard_unit, item)==FALSE)
-#       return(c('3b','Missing item.',"(Error)")) # no item input
-#     tmp=gsub(item_regexpr_with_nonstandard_unit, "\\3", item)
-#   }
+  tmp=gsub(unit_regexpr, "\\2", item, ignore.case=TRUE)
+  itemInfo[2]=standardizeMeasurement(tmp)
   
-    # remove excess punctuation and contents between parentheses. [BREAKS] when parentheses are nested
+  if(itemInfo[2]!=''){ # item uses standard unit
+    tmp=gsub(item_regexpr, "\\3", item)
+  }else{ # item uses nonstandard unit, which is set to ''
+    tmp=gsub(item_regexpr_with_nonstandard_unit, "\\2", item)
+  }
+  
+  # remove excess punctuation and contents between parentheses. [BREAKS] when parentheses are nested
   itemInfo[3]=gsub("[[:punct:]]", "", gsub("\\s*\\(+[^\\)]+\\)+","", tmp))
   
-#  if(!(itemInfo[2] %in% knownMeasurements))
-#    return(c('2b','Measurement is not known or standard.',"(Error)")) # improper measurement
-  
-  #if(length(itemInfo)!=3)
-  #  return(c('1b','Missing quantity, unit size, or item.',"(Error)")) # improper input
   if(itemInfo[3]=="")
     return(c(item, paste(item, ' - Missing item.', collapse=''),"(Error)")) # no item input
   
@@ -243,6 +234,51 @@ filterInput <- function(recipe){
     errorMessages=matrix(info[!w,c(4,2)],ncol=2)
   }
   return(list(validinfo, errorMessages))
+}
+
+optimizeUnits<-function(conversionType, info)
+{
+  if(conversionType=="weight")
+  {
+    w=which(info[,2]%in%knownWeights)
+    tmp=matrix(as.numeric(info[w,1])/weightConversion[info[w,2],], ncol=ncol(weightConversion))
+    colnames(tmp)=colnames(weightConversion)
+  }else{
+    w=which(info[,2]%in%knownVolumes)
+    tmp=matrix(as.numeric(info[w,1])/volumeConversion[info[w,2],], ncol=ncol(volumeConversion))
+    colnames(tmp)=colnames(volumeConversion)
+  }
+  if(length(w)==0) return(info) # error, no units are of the conversion type
+
+  opt=apply(tmp,1,function(i) which.min(abs(i-1)))
+  optimizedquants=sapply(1:nrow(tmp), function(i) tmp[i,opt[i]])
+  info[w,1]=as.character(round(optimizedquants,2))
+  info[w,2]=colnames(tmp)[opt]
+  return(info)
+}
+convertItemUnits <- function(recipe, scale=1, optimizeUnits=FALSE){
+  if(scale<=0) return(NULL) # error, scale was less than 0
+  
+  items=unlist(strsplit(recipe, split="\n"))
+  items=items[items!='']
+  if(length(items)==0) return(NULL) # error check: empty input
+  
+  info=t(unname(sapply(items, getItemInfo)))
+  
+  w=info[,3]!="(Error)"
+  info[!w,]=c(items[!w], "","")
+  quant=as.numeric(info[w, 1])*scale
+  # change the quantities
+  info[w,1]=as.character(round(quant,2))
+  # standardize measurement names for simplicity
+  info[,2]=unname(sapply(info[,2], standardizeMeasurement))
+  if(optimizeUnits==FALSE) return(info) # if optimizing units is not used, stop here
+  
+  # optimize weights
+  info=optimizeUnits("weight", info)
+  
+  info=optimizeUnits("volume", info)
+  return(info)
 }
 
 # userMeasurement (string), dbMeasurement (string)
@@ -341,12 +377,20 @@ shortenString<-function(string, length=10)
 
 # string (string), strings (string vector)
 # Return a measure for how similar strings are.
+# stringSimilarity<-function(string, strings)
+# {
+#   string=gsub("[[:punct:]]","", string)
+#   strings=gsub("[[:punct:]]","",strings)
+#   chars=strsplit(c(string, strings), ' ')
+#   val=sapply(as.list(chars[-1]), function(x) sum(x%in%chars[[1]])/length(x))
+#   return(val)
+# }
 stringSimilarity<-function(string, strings)
 {
   string=gsub("[[:punct:]]","", string)
   strings=gsub("[[:punct:]]","",strings)
   chars=strsplit(c(string, strings), ' ')
-  val=sapply(as.list(chars[-1]), function(x) sum(x%in%chars[[1]])/length(x))
+  val=sapply(as.list(chars[-1]), function(x) sum(x%in%chars[[1]])/length(x) + sum(chars[[1]]%in%x)/length(chars[[1]]))
   return(val)
 }
 
@@ -354,12 +398,14 @@ stringSimilarity<-function(string, strings)
 # Main function
 # --------------------------------------------------------------------
 shinyServer(function(input, output, session){
+  # --== NUTRITIONS TAB ==-- #
   reactivevals<-reactiveValues()
   # page number that user is currently on
   #reactivevals$serverBusy=FALSE
   reactivevals$errorMessages=NULL
   reactivevals$pageNumber=1
   reactivevals$servings=1
+  reactivevals$mc_scale=1
   reactivevals$itemSelection=0 # dummy default
   reactivevals$factIndex=NULL # dummy default
   reactivevals$choiceList=NULL # dummy default
@@ -827,5 +873,63 @@ shinyServer(function(input, output, session){
     }else{
       return(NULL)
     }
+  })
+  
+  # --== SCALING TAB ==-- #
+  mc_scaled<-observe({
+    if(is.null(input$mc_submit)){
+      output$test<-renderPrint(invisible())
+      return()
+    }
+    
+    isolate({
+      if(grepl("[[:digit:]]", input$mc_scale)){
+        servings=try(mixedToFloat(input$mc_scale))
+        if(inherits(servings, "try-error")) servings=reactivevals$mc_servings
+        else reactivevals$mc_servings=servings
+      }
+      
+      optimized=convertItemUnits(input$mc_inputBox, scale=servings)
+      if(is.null(optimized)){
+        output$test<-renderPrint(invisible())
+        return()
+      }
+      print(optimized)
+      optimized=matrix(optimized, ncol=3)
+      
+      output$test<-renderPrint({
+        w=which(optimized[,3]=="(Error)")
+        optimized[w,]=c("\n","","")
+        return(cat(paste(optimized[,1], " ", optimized[,2], " ", optimized[,3], collapse="\n", sep="")))
+      })
+    })
+  })
+  mc_scaled<-observe({
+    if(is.null(input$mc_submit2))
+      {
+      output$test<-renderPrint(invisible())
+      return()
+    }
+    
+    isolate({
+      if(grepl("[[:digit:]]", input$mc_scale)){
+        servings=try(mixedToFloat(input$mc_scale))
+        if(inherits(servings, "try-error")) servings=reactivevals$mc_servings
+        else reactivevals$mc_servings=servings
+      }
+      
+      optimized=convertItemUnits(input$mc_inputBox, optimizeUnits=TRUE, scale=servings)
+      if(is.null(optimized)){
+        output$test<-renderPrint(invisible())
+        return()
+      }
+      print(optimized)
+      optimized=matrix(optimized, ncol=3)
+      output$test<-renderPrint({
+        w=which(optimized[,3]=="(Error)")
+        optimized[w,]=c("\n","","")
+        return(cat(paste(optimized[,1], " ", optimized[,2], " ", optimized[,3], collapse="\n", sep="")))
+        })
+    })
   })
 })
