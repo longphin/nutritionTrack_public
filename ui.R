@@ -4,20 +4,19 @@ library(DT)
 shinyUI(navbarPage("myRecipeFacts",
   tabPanel("How To", wellPanel(
     h3("Nutrition tab"),
-    h6('These measurements currently use the United States (no U.K option yet) and metric system.'),
-    h6('Enter a recipe and press the Submit button. If any items did not match the database, then errors will appear in red. You may continue normally, however the items in red will be excluded from the results.'),
-    h6('The "Database Matches" tab contains dropdown lists for the items that were matched. You can use these to fix any matches that the system made.'),
+    h6('Looking to calculate how much calories, protein, carbs, and more are in your meal?'),
+    h6('Enter a recipe and press the Submit button. If any items did not match the database, then errors will appear in red; you may continue normally, however the items in red will be excluded from the calculations.'),
     h6("Example input: 1 2/3 tbs cinnamon"),
     h6("               2 eggs"),
     h3("Measurement Conversion tab"),
-    h6("This tab makes it easy to reduce the recipe to your desires. Want to scale down the recipe by 1/2, 1/4 or even scale up? Simply type in a number to the multiplier box."),
-    h6("You can rescale keeping the original recipe's measurements or make it automatically choose the smallest necessary measurement.")
+    h6("Looking to scale up or down a recipe? Enter a recipe and type in a multiplier."),
+    h6("You can rescale the recipe, keeping the original recipe's measurements or automatically choose the smallest necessary measurement.")
     )),
   
   tabPanel("Nutrition",
            fluidRow(
              tabsetPanel("Your Recipe", id="recipeTab",
-                         tabPanel("Your Recipe",
+                         tabPanel("Step 1: Recipe",
                                   uiOutput("submitButton"),
                                   textOutput("characterlimit"),
                                   tags$textarea(id="recipeInput", rows=10, cols=110, "", maxlength=750),
@@ -27,9 +26,9 @@ shinyUI(navbarPage("myRecipeFacts",
                                  }"
                                   ))
                          ),
-                         tabPanel("Database Matches",
+                         tabPanel("Step 2: Database",
                                   fluidRow(
-                                  column(2,actionButton("seeNutrition", label = "see Nutrition")),
+                                  column(2,actionButton("seeNutrition", label = "Continue")),
                                   column(2,uiOutput("previousButton")),
                                   column(8,uiOutput("nextButton"))
                                   ),
@@ -67,7 +66,7 @@ shinyUI(navbarPage("myRecipeFacts",
                                            column(9,htmlOutput("selectUI_10"))
                                   )
                          ),
-                         tabPanel("The Facts",
+                         tabPanel("Step 3: Nutrition",
                                   fluidRow(column(4, textInput("servingInput", label="Divide into servings:", value=1))),
                                   fluidRow(
                            column(12,htmlOutput("sortColumns")),
@@ -82,14 +81,23 @@ shinyUI(navbarPage("myRecipeFacts",
            fluidRow(
              column(3, textInput("mc_scale", label="Multiply recipe by:", value=1))),
            fluidRow(
-             column(3, actionButton("mc_submit", label = "Rescale (keep original units)")),
-             column(3, actionButton("mc_submit2", label = "Rescale (optimize units)"))
+             column(2, strong("Rescale using:")),
+             column(2, actionButton("mc_submit", label = "original units")),
+             column(2, actionButton("mc_submit3", label = "custom units")),
+             column(2, actionButton("mc_submit2", label = "optimized units"))
+           ),
+           br(),
+           fluidRow(
+             column(4, strong("Your recipe")),
+             column(2, strong("Custom units (optional)")),
+             column(4, strong("Rescaled recipe"))
            ),
            fluidRow(
-             column(6, tags$textarea(id="mc_inputBox", rows=10, cols=60, "", maxlength=1500)),
-             column(6, verbatimTextOutput("test"))
+             column(4, tags$textarea(id="mc_inputBox", rows=10, cols=40, "", maxlength=1500)),
+             column(2, tags$textarea(id="mc_unitsBox", rows=10, cols=20, "", maxlength=1500)),
+             column(4, verbatimTextOutput("mc_rescaledText"))
              )
-           ),
+           ), # tabPanel - "Measurement Conversion"
   
   tabPanel("About",
            fluidRow(
@@ -101,7 +109,7 @@ shinyUI(navbarPage("myRecipeFacts",
                       Thank you and enjoy!"),
               strong("Contact"), helpText("If you find any problems, please email me.
               If the problem occurred due to a recipe input, please include the exact text you used so that I may replicate and solve the problem."),
-                helpText("NutriTrackWeb@gmail.com"),
+                helpText("support@myrecipefacts.com"),
               strong("Other Sites"), helpText("If you would like to support my other projects, please take a look at the following links:"),
                 helpText(a("Math/pun T-shirts", href="http://www.cafepress.com/LameShirtsAbound", target="_blank")),
               strong("Disclaimer"), helpText("There may be discrepencies between actual nutrients and the ones in the Nutritionix database.

@@ -5,7 +5,7 @@ fieldsToGet="item_id,item_name,brand_name,n_calories,nf_calories_from_fat,nf_cal
 def searchNix(queries):
   res=[]
   for query in queries:
-    items=nix.search(query, results="0:10", fields=fieldsToGet, filters={"item_type":3}, sort={"field":"_score"}).json()
+    items=nix.search(query, results="0:20", fields=fieldsToGet, sort={"field":"_score"}).json()
     if 'hits' in items:
       facts=[item['fields'] for item in items['hits']]
       res.append(facts)
