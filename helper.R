@@ -319,7 +319,7 @@ convertItemUnits <- function(recipe, targetUnits, scale=1, optimizeUnits=FALSE){
   # if targetUnits are used
   if(!is.null(targetUnits))
   {
-    target=unlist(strsplit(targetUnits, split="\n"))
+    target=tolower(unlist(strsplit(targetUnits, split="\n")))
     #target=target[target!='']
     info=convertToTargetUnits(info, target)
     info[w,1]=as.character(round(as.numeric(info[w,1]), 3))
