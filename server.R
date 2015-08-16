@@ -13,7 +13,7 @@ shinyServer(function(input, output, session){
   # --== NUTRITIONS TAB ==-- #
   reactivevals<-reactiveValues()
   # page number that user is currently on
-  #reactivevals$serverBusy=FALSE
+  reactivevals$serverBusy=FALSE
   reactivevals$errorMessages=NULL
   reactivevals$pageNumber=1
   reactivevals$servings=1
@@ -22,9 +22,15 @@ shinyServer(function(input, output, session){
   reactivevals$factIndex=NULL # dummy default
   reactivevals$choiceList=NULL # dummy default
   
+  output$recipeBox<-renderUI({
+    tags$textarea(id="recipeInput", rows=10, cols=110, "", maxlength=750)
+    })
+  
   # character limit
   output$characterlimit<-renderText(
     {
+      if(length(input$recipeInput)==0) return(NULL)
+      
       x=unlist(strsplit(input$recipeInput, ''))
       newline_count=sum(x=='\n')
       char_count=2*newline_count+(length(x)-newline_count)
@@ -42,7 +48,7 @@ shinyServer(function(input, output, session){
     
     isolate({
       # reset page number reactive values
-      #reactivevals$serverBusy=TRUE
+      reactivevals$serverBusy=TRUE
       reactivevals$errorMessages=NULL
       reactivevals$pageNumber=1
       reactivevals$factIndex=NULL
@@ -50,6 +56,7 @@ shinyServer(function(input, output, session){
       # ---------------------------------------------
       # Obtain recipe, filter, and nutritional facts.
       # ---------------------------------------------
+      if(DEBUG) print(input$recipeInput)
       inputMatrix=filterInput(input$recipeInput)
       reactivevals$errorMessages=inputMatrix[[2]]
       itemsList=inputMatrix[[1]]
@@ -70,9 +77,14 @@ shinyServer(function(input, output, session){
         return(NULL)
       }
       
+      #output$recipeBox<-renderUI(tags$textarea(id="recipeInput", rows=10, cols=110, "A\nB", maxlength=750))
       res=matrix(itemsList, ncol=4,dimnames=list(NULL,c("qty","unit","item","itemNumber")))
       if(nrow(res)==0) return(NULL) # error: all items had errors
       
+#       output$recipeBox<-renderUI({
+#         print("2")
+#         tags$textarea(id="recipeInput", rows=10, cols=110, removeEmptyLines(input$recipeInput), maxlength=750)
+#       })
       # recipeMatrix has columns qty, unit, item, itemNumber
       return(res)
     })})
@@ -81,7 +93,7 @@ shinyServer(function(input, output, session){
     if(DEBUG) print("nutriTrackFacts")
     if(is.null(recipeMatrix()))
     {
-      #reactivevals$serverBusy=FALSE
+      reactivevals$serverBusy=FALSE
       return(NULL)
     }
     isolate({
@@ -153,7 +165,7 @@ shinyServer(function(input, output, session){
         user_item=recipeMatrix()[i,'item']
         related_items_names=sapply(related_items[choiceList], function(x) x$item_name)
         related_brand_names=sapply(related_items[choiceList], function(x) x$brand_name)=="USDA"
-        sorted=sort(stringSimilarity(tolower(user_item), tolower(related_items_names))+0.3*related_brand_names, decreasing=TRUE, index.return=TRUE)$ix
+        sorted=sort(stringSimilarity(tolower(user_item), tolower(related_items_names))+1*related_brand_names, decreasing=TRUE, index.return=TRUE)$ix
         return(choiceList[sorted])
       })
       
@@ -177,11 +189,16 @@ shinyServer(function(input, output, session){
       }
       
       reactivevals$itemSelection=sapply(reactivevals$choiceList, function(x) x[1])
-      #reactivevals$serverBusy=FALSE
+      reactivevals$serverBusy=FALSE
       return(nutritionFacts)
     })})
   
+  # button press: go to Facts table
   observeEvent(input$seeNutrition, updateTabsetPanel(session, "recipeTab", "Step 3: Nutrition"))
+  # button press: clear recipe input
+  observeEvent(input$clearButton, output$recipeBox<-renderUI({
+    tags$textarea(id="recipeInput", rows=10, cols=110, "", maxlength=750)
+    }))
   
   choiceButtons<-observe({
     if(DEBUG) print("choiceButtons")
@@ -418,7 +435,7 @@ shinyServer(function(input, output, session){
   output$submitButton<-renderUI({
     if(DEBUG) print('output$submitButton')
     
-    #if(reactivevals$serverBusy) return()
+    if(reactivevals$serverBusy) return()
     return(actionButton("submit", label = "Continue"))
   })
   output$previousButton<-renderUI({

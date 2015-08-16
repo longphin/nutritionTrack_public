@@ -6,6 +6,7 @@ def searchNix(queries):
   res=[]
   for query in queries:
     items=nix.search(query, results="0:20", fields=fieldsToGet, sort={"field":"_score"}).json()
+    #items=nix.search(query, results="0:20", fields=fieldsToGet, sort={"field":"_score"}).json()
     if 'hits' in items:
       facts=[item['fields'] for item in items['hits']]
       res.append(facts)

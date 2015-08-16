@@ -314,7 +314,7 @@ convertItemUnits <- function(recipe, targetUnits, scale=1, optimizeUnits=FALSE){
   # change the quantities
   info[w,1]=as.character(quant)
   # standardize measurement names for simplicity
-  info[,2]=unname(sapply(info[,2], standardizeMeasurement))
+  info[,2]=unname(sapply(tolower(info[,2]), standardizeMeasurement))
   
   # if targetUnits are used
   if(!is.null(targetUnits))
@@ -474,4 +474,11 @@ rescaleItems<-function(input, targetUnits=NULL, scale, servings_old, newUnits, o
   rescaleText=paste(optimized[,1], " ", optimized[,2], " ", optimized[,3], collapse="\n", sep="")
   
   return(c(rescaleText=rescaleText, res=optimized, servings=servings))
+}
+
+# remove empty newlines from string
+removeEmptyLines<-function(string){
+  if(is.null(string)) return('')
+  lines=unlist(strsplit(string, split="\n"))
+  return(lines[lines!=''])
 }

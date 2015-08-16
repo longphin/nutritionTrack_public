@@ -17,9 +17,10 @@ shinyUI(navbarPage("myRecipeFacts",
            fluidRow(
              tabsetPanel("Your Recipe", id="recipeTab",
                          tabPanel("Step 1: Recipe",
-                                  uiOutput("submitButton"),
+                                  fluidRow(column(2,uiOutput("submitButton")),
+                                          column(2, actionButton("clearButton", label = "Clear Box"))),
                                   textOutput("characterlimit"),
-                                  tags$textarea(id="recipeInput", rows=10, cols=110, "", maxlength=750),
+                                  uiOutput("recipeBox"),#tags$textarea(id="recipeInput", rows=10, cols=110, "Test", maxlength=750),
                                   verbatimTextOutput("errorMessages"),
                                   tags$head(tags$style("#errorMessages{color: red;
                                  font-style: italic;
@@ -109,7 +110,7 @@ shinyUI(navbarPage("myRecipeFacts",
                       Thank you and enjoy!"),
               strong("Contact"), helpText("If you find any problems, please email me.
               If the problem occurred due to a recipe input, please include the exact text you used so that I may replicate and solve the problem."),
-                helpText("support@myrecipefacts.com"),
+                helpText("nutriTrackWeb@gmail.com"),#support@myrecipefacts.com"),
               strong("Other Sites"), helpText("If you would like to support my other projects, please take a look at the following links:"),
                 helpText(a("Math/pun T-shirts", href="http://www.cafepress.com/LameShirtsAbound", target="_blank")),
               strong("Disclaimer"), helpText("There may be discrepencies between actual nutrients and the ones in the Nutritionix database.
@@ -120,7 +121,8 @@ shinyUI(navbarPage("myRecipeFacts",
                                               Thus, if the site stops working due to this restriction, please try again the next day.")
              ),
              helpText("Coded in R/Rstudio and ", a("shinyapps", href="http://shiny.rstudio.com/", target="_blank")),
-             helpText("Data is provided by and thanks to", a("Nutritionix API", href="http://www.nutritionix.com/api", target="_blank"))
+             helpText("Data is provided by and thanks to", a("Nutritionix API", href="http://www.nutritionix.com/api", target="_blank")),
+             helpText("Copyright 2015; Longphi Nguyen")
            )
   )
 ))
