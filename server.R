@@ -4,7 +4,7 @@ library(DT)
 python.load("main.py")
 source("helper.R")
 
-DEBUG=FALSE
+DEBUG=TRUE
 
 # --------------------------------------------------------------------
 # Main function
@@ -21,10 +21,26 @@ shinyServer(function(input, output, session){
   reactivevals$itemSelection=0 # dummy default
   reactivevals$factIndex=NULL # dummy default
   reactivevals$choiceList=NULL # dummy default
+  reactivevals$customInputBoxes=logical(10)
+  reactivevals$customInputBoxesText=paste(rep("Enter your own nutrition for this item.", 10), 1:10, sep='')
+  
+  # prerendered UI
+  output$check1<-renderUI(checkboxInput("check1", label = "", value = FALSE))
+  output$check2<-renderUI(checkboxInput("check2", label = "", value = FALSE))
+  output$check3<-renderUI(checkboxInput("check3", label = "", value = FALSE))
+  output$check4<-renderUI(checkboxInput("check4", label = "", value = FALSE))
+  output$check5<-renderUI(checkboxInput("check5", label = "", value = FALSE))
+  output$check6<-renderUI(checkboxInput("check6", label = "", value = FALSE))
+  output$check7<-renderUI(checkboxInput("check7", label = "", value = FALSE))
+  output$check8<-renderUI(checkboxInput("check8", label = "", value = FALSE))
+  output$check9<-renderUI(checkboxInput("check9", label = "", value = FALSE))
+  output$check10<-renderUI(checkboxInput("check10", label = "", value = FALSE))
+  
+  # internal helper functions
   
   output$recipeBox<-renderUI({
-    tags$textarea(id="recipeInput", rows=10, cols=110, "", maxlength=750)
-    })
+    tags$textarea(id="recipeInput", rows=17, cols=110, "", maxlength=750)
+  })
   
   # character limit
   output$characterlimit<-renderText(
@@ -56,7 +72,19 @@ shinyServer(function(input, output, session){
       # ---------------------------------------------
       # Obtain recipe, filter, and nutritional facts.
       # ---------------------------------------------
-      if(DEBUG) print(input$recipeInput)
+      # recreate textbox, with fluff in input removed
+#       if(DEBUG) print(input$recipeInput)
+#       newInput=removeEmptyLines(input$recipeInput)
+#       if(newInput!=input$recipeInput){
+#         isolate(
+#           output$recipeBox<-renderUI({
+#             tags$textarea(id="recipeInput", rows=17, cols=110, newInput, maxlength=750)
+#           })
+#         )
+#         return(NULL)
+#       }
+      
+      #inputMatrix=filterInput(newInput)
       inputMatrix=filterInput(input$recipeInput)
       reactivevals$errorMessages=inputMatrix[[2]]
       itemsList=inputMatrix[[1]]
@@ -71,28 +99,32 @@ shinyServer(function(input, output, session){
         output$selectUI_8<-renderUI(return())
         output$selectUI_9<-renderUI(return())
         output$selectUI_10<-renderUI(return())
+        output$customItemBox_1<-renderUI(return())
+        output$customItemBox_2<-renderUI(return())
+        output$customItemBox_3<-renderUI(return())
+        output$customItemBox_4<-renderUI(return())
+        output$customItemBox_5<-renderUI(return())
+        output$customItemBox_6<-renderUI(return())
+        output$customItemBox_7<-renderUI(return())
+        output$customItemBox_8<-renderUI(return())
+        output$customItemBox_9<-renderUI(return())
+        output$customItemBox_10<-renderUI(return())
         
         reactivevals$errorMessages=NULL
         output$errorMessages<-renderPrint(invisible())
         return(NULL)
       }
       
-      #output$recipeBox<-renderUI(tags$textarea(id="recipeInput", rows=10, cols=110, "A\nB", maxlength=750))
       res=matrix(itemsList, ncol=4,dimnames=list(NULL,c("qty","unit","item","itemNumber")))
       if(nrow(res)==0) return(NULL) # error: all items had errors
       
-#       output$recipeBox<-renderUI({
-#         print("2")
-#         tags$textarea(id="recipeInput", rows=10, cols=110, removeEmptyLines(input$recipeInput), maxlength=750)
-#       })
       # recipeMatrix has columns qty, unit, item, itemNumber
       return(res)
     })})
   
   nutriTrackFacts<-reactive({
     if(DEBUG) print("nutriTrackFacts")
-    if(is.null(recipeMatrix()))
-    {
+    if(is.null(recipeMatrix())){
       reactivevals$serverBusy=FALSE
       return(NULL)
     }
@@ -102,8 +134,7 @@ shinyServer(function(input, output, session){
       uniqueItems=NULL
       reactivevals$factIndex=numeric(length(items))
       names(reactivevals$factIndex)=1:length(items)
-      for(i in 1:length(items))
-      {
+      for(i in 1:length(items)){
         if(reactivevals$factIndex[i]!=0) next # item is already determined to be a duplicate
         
         uniqueItems=c(uniqueItems, i)
@@ -135,8 +166,8 @@ shinyServer(function(input, output, session){
           # add a calories section
           t=unlist(nutritionFacts[[i]][[j]][c('nf_protein', 'nf_total_carbohydrate', 'nf_total_fat')])
           nutritionFacts[[i]][[j]]$calories=unname(4*ifelse(!is.null(t['nf_protein']), as.numeric(t['nf_protein']), 0)+
-            4*ifelse(!is.na(t['nf_total_carbohydrate']), as.numeric(t['nf_total_carbohydrate']))+
-            9*ifelse(!is.na(t['nf_total_fat']), as.numeric(t['nf_total_fat']), 0))
+                                                     4*ifelse(!is.na(t['nf_total_carbohydrate']), as.numeric(t['nf_total_carbohydrate']))+
+                                                     9*ifelse(!is.na(t['nf_total_fat']), as.numeric(t['nf_total_fat']), 0))
           
           # standardize measurements
           standardmeasurement=standardizeMeasurement(nutritionFacts[[i]][[j]]$nf_serving_size_unit)
@@ -153,8 +184,7 @@ shinyServer(function(input, output, session){
         item_measurements=sapply(related_items, function(x) x['nf_serving_size_unit'])
         choiceList=whichSameMeasurementType(userMeasurement, item_measurements)
         
-        if(length(choiceList)==0)
-        {
+        if(length(choiceList)==0){
           reactivevals$errorMessages=rbind(reactivevals$errorMessages,
                                            c(i,sprintf("%s - Database does not have matches using those units. Potential matches use: %s", 
                                                        paste(recipeMatrix()[i,1:3], collapse=''),
@@ -188,7 +218,11 @@ shinyServer(function(input, output, session){
         )
       }
       
+      # reset checkboxes
       reactivevals$itemSelection=sapply(reactivevals$choiceList, function(x) x[1])
+      reactivevals$customInputBoxes=logical(max(10,length(reactivevals$itemSelection)))
+      #for(tmp in paste0("testText", 1:10)) updateCheckboxInput(session, tmp, label=NULL, value=FALSE) # NEED checkboxes do not display its actual value
+      reactivevals$customInputBoxesText=rep("Enter your own nutrition for this item.", length(reactivevals$customInputBoxes))
       reactivevals$serverBusy=FALSE
       return(nutritionFacts)
     })})
@@ -197,9 +231,270 @@ shinyServer(function(input, output, session){
   observeEvent(input$seeNutrition, updateTabsetPanel(session, "recipeTab", "Step 3: Nutrition"))
   # button press: clear recipe input
   observeEvent(input$clearButton, output$recipeBox<-renderUI({
-    tags$textarea(id="recipeInput", rows=10, cols=110, "", maxlength=750)
-    }))
+    tags$textarea(id="recipeInput", rows=17, cols=110, "", maxlength=750)
+  }))
   
+  { # user selects "custom nutrients"
+  observeEvent({
+    input$check1
+    input$check2
+    input$check3
+    input$check4
+    input$check5
+    input$check6
+    input$check7
+    input$check8
+    input$check9
+    input$check10
+  },ignoreNULL=TRUE, {
+    print(sprintf("----- %s -----",Sys.time()))
+    print("input$check1")
+    print(input$check1)
+    facts=nutriTrackFacts()
+    page=reactivevals$pageNumber-1
+    minIndex=page*10
+    factnum=reactivevals$factIndex
+    selectnum=reactivevals$itemSelection
+    n=min(length(factnum), page*10+10)-minIndex
+    
+    # only check boxes that have changed
+    oldCheckBoxes=reactivevals$customInputBoxes
+    reactivevals$customInputBoxes=c(input$check1,input$check2,input$check3,input$check4,input$check5,input$check6,input$check7,input$check8,input$check9,input$check10)
+    print(reactivevals$customInputBoxesText)
+    print(sprintf("page %i, minIndex %i, n %i, len(choiceList) %i, class(choiceList) %s, len(oldCheckBoxes) %i", page, minIndex, n, length(reactivevals$choiceList), class(reactivevals$choiceList), length(oldCheckBoxes)))
+    
+    ind=1
+#     res=getCustomInput(ind, input$check1, oldCheckBoxes[minIndex+ind], reactivevals$customInputBoxesText[minIndex+ind], facts[[factnum[minIndex+ind]]], selectnum[minIndex+ind], reactivevals$choiceList[[minIndex+ind]], input$testText1, recipeMatrix(), minIndex)
+#     getCustomInput<-function(ind, input, oldCheckBox, customBox='', facts, selection, choiceList, customText, recipeMatrix, minIndex)
+#     {
+#       print(ind)
+#       returnval=list()
+#       index=minIndex+ind
+#     if(oldCheckBox!=input){  
+#       if(input){
+#         print(paste(ind,"a"))
+#         returnval$UI<-renderUI(textInput(paste0("testText",ind), label = NULL, value = customBox))
+#         #output$selectUI_1<-renderUI(textInput("testText1", label = NULL, value = customBox))
+#       }else{
+#         if(n>=ind){
+#           print(paste(ind,"b"))
+#           print(choiceList)
+#           returnval$text<-input[paste0('testText',ind)]
+#           #reactivevals$customInputBoxesText[index]=input$testText1
+#           returnval$UI<-renderUI(createChoiceButtons(ind, facts[[factnum[index]]], selectnum[index], reactivevals$choiceList[[index]]))
+#           #output$selectUI_1 <- renderUI(createChoiceButtons(ind, facts[[factnum[index]]], selectnum[index], reactivevals$choiceList[[index]]))
+#           output$select1_info<-renderPrint(cat(paste(recipeMatrix[as.numeric(names(factnum[index])),1:3], collapse=" ")))
+#         }else{
+#           print("1c")
+#           returnval$text<-input[paste0('testText',ind)]
+#           #reactivevals$customInputBoxesText[index]=input$testText1
+#           returnval$UI<-renderUI(return())
+#           output$select1_info<-renderPrint(invisible())
+#         } # returnval$UI
+#       }}
+#    return(returnval)
+#     }
+#    output$selectUI_1<-res$UI
+    print(ind)
+    if(oldCheckBoxes[minIndex+ind]!=input$check1){  
+      if(input$check1){
+        print(paste(ind,"a"))
+        val=reactivevals$customInputBoxesText[minIndex+ind]
+        output$selectUI_1<-renderUI(textInput("testText1", label = NULL, value = val))
+      }else{
+        if(n>=ind){
+          print(paste(ind,"b"))
+          reactivevals$customInputBoxesText[minIndex+ind]=input$testText1
+          tmp1=facts[[factnum[minIndex+ind]]]
+          tmp2=selectnum[minIndex+ind]
+          tmp3=reactivevals$choiceList[[minIndex+ind]]
+          output$selectUI_1 <- renderUI(createChoiceButtons(ind, tmp1, tmp2, tmp3))
+#          output$select1_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+ind])),1:3], collapse=" ")))
+        }else{
+          print("1c")
+          reactivevals$customInputBoxesText[minIndex+ind]=input$testText1
+          output$selectUI_1<-renderUI(return())
+          output$select1_info<-renderPrint(invisible())
+        }
+      }}
+    ind=2
+    print(ind)
+    if(oldCheckBoxes[minIndex+ind]!=input$check2){  
+      if(input$check2){
+        print(paste(ind,"a"))
+        val=reactivevals$customInputBoxesText[minIndex+ind]
+        output$selectUI_2<-renderUI(textInput("testText2", label = NULL, value = val))
+      }else{
+        if(n>=ind){
+          print(paste(ind,"b"))
+          reactivevals$customInputBoxesText[minIndex+ind]=input$testText2
+          tmp=reactivevals$choiceList[[minIndex+ind]]
+          output$selectUI_2 <- renderUI(createChoiceButtons(ind, facts[[factnum[minIndex+ind]]], selectnum[minIndex+ind], tmp))
+          output$select2_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+ind])),1:3], collapse=" ")))
+        }else{
+          print("2c")
+          reactivevals$customInputBoxesText[minIndex+ind]=input$testText2
+          output$selectUI_2<-renderUI(return())
+          output$select2_info<-renderPrint(invisible())
+        }
+      }}
+#     ind=3
+#     print(ind)
+#     if(oldCheckBoxes[minIndex+ind]!=input$check3){  
+#       if(input$check3){
+#         print(paste(ind,"a"))
+#         val=reactivevals$customInputBoxesText[minIndex+ind]
+#         output$selectUI_3<-renderUI(textInput("testText3", label = NULL, value = val))
+#       }else{
+#         if(n>=ind){
+#           print(paste(ind,"b"))
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText3
+#           output$selectUI_3 <- renderUI(createChoiceButtons(ind, facts[[factnum[minIndex+ind]]], selectnum[minIndex+ind], reactivevals$choiceList[[minIndex+ind]]))
+#           output$select3_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+ind])),1:3], collapse=" ")))
+#         }else{
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText3
+#           output$selectUI_3<-renderUI(return())
+#           output$select3_info<-renderPrint(invisible())
+#         }
+#       }}
+#     ind=4
+#     print(ind)
+#     if(oldCheckBoxes[minIndex+ind]!=input$check4){  
+#       if(input$check4){
+#         print(paste(ind,"a"))
+#         val=reactivevals$customInputBoxesText[minIndex+ind]
+#         output$selectUI_4<-renderUI(textInput("testText4", label = NULL, value = val))
+#       }else{
+#         if(n>=ind){
+#           print(paste(ind,"b"))
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText4
+#           output$selectUI_4 <- renderUI(createChoiceButtons(ind, facts[[factnum[minIndex+ind]]], selectnum[minIndex+ind], reactivevals$choiceList[[minIndex+ind]]))
+#           output$select4_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+ind])),1:3], collapse=" ")))
+#         }else{
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText4
+#           output$selectUI_4<-renderUI(return())
+#           output$select4_info<-renderPrint(invisible())
+#         }
+#       }}
+#     ind=5
+#     print(ind)
+#     if(oldCheckBoxes[minIndex+ind]!=input$check5){  
+#       if(input$check5){
+#         print(paste(ind,"a"))
+#         val=reactivevals$customInputBoxesText[minIndex+ind]
+#         output$selectUI_5<-renderUI(textInput("testText5", label = NULL, value = val))
+#       }else{
+#         if(n>=ind){
+#           print(paste(ind,"b"))
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText5
+#           output$selectUI_5 <- renderUI(createChoiceButtons(ind, facts[[factnum[minIndex+ind]]], selectnum[minIndex+ind], reactivevals$choiceList[[minIndex+ind]]))
+#           output$select5_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+ind])),1:3], collapse=" ")))
+#         }else{
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText5
+#           output$selectUI_5<-renderUI(return())
+#           output$select5_info<-renderPrint(invisible())
+#         }
+#       }}
+#     ind=6
+#     print(ind)
+#     if(oldCheckBoxes[minIndex+ind]!=input$check6){  
+#       if(input$check6){
+#         print(paste(ind,"a"))
+#         val=reactivevals$customInputBoxesText[minIndex+ind]
+#         output$selectUI_6<-renderUI(textInput("testText6", label = NULL, value = val))
+#       }else{
+#         if(n>=ind){
+#           print(paste(ind,"b"))
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText6
+#           output$selectUI_6 <- renderUI(createChoiceButtons(ind, facts[[factnum[minIndex+ind]]], selectnum[minIndex+ind], reactivevals$choiceList[[minIndex+ind]]))
+#           output$select6_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+ind])),1:3], collapse=" ")))
+#         }else{
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText6
+#           output$selectUI_6<-renderUI(return())
+#           output$select6_info<-renderPrint(invisible())
+#         }
+#       }}
+#     ind=7
+#     print(ind)
+#     if(oldCheckBoxes[minIndex+ind]!=input$check7){  
+#       if(input$check7){
+#         print(paste(ind,"a"))
+#         val=reactivevals$customInputBoxesText[minIndex+ind]
+#         output$selectUI_7<-renderUI(textInput("testText7", label = NULL, value = val))
+#       }else{
+#         if(n>=ind){
+#           print(paste(ind,"b"))
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText7
+#           output$selectUI_7 <- renderUI(createChoiceButtons(ind, facts[[factnum[minIndex+ind]]], selectnum[minIndex+ind], reactivevals$choiceList[[minIndex+ind]]))
+#           output$select7_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+ind])),1:3], collapse=" ")))
+#         }else{
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText7
+#           output$selectUI_7<-renderUI(return())
+#           output$select7_info<-renderPrint(invisible())
+#         }
+#       }}
+#     ind=8
+#     print(ind)
+#     if(oldCheckBoxes[minIndex+ind]!=input$check8){  
+#       if(input$check8){
+#         print(paste(ind,"a"))
+#         val=reactivevals$customInputBoxesText[minIndex+ind]
+#         output$selectUI_8<-renderUI(textInput("testText8", label = NULL, value = val))
+#       }else{
+#         if(n>=ind){
+#           print(paste(ind,"b"))
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText8
+#           output$selectUI_8 <- renderUI(createChoiceButtons(ind, facts[[factnum[minIndex+ind]]], selectnum[minIndex+ind], reactivevals$choiceList[[minIndex+ind]]))
+#           output$select8_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+ind])),1:3], collapse=" ")))
+#         }else{
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText8
+#           output$selectUI_8<-renderUI(return())
+#           output$select8_info<-renderPrint(invisible())
+#         }
+#       }}
+#     ind=9
+#     print(ind)
+#     if(oldCheckBoxes[minIndex+ind]!=input$check9){  
+#       if(input$check9){
+#         print(paste(ind,"a"))
+#         val=reactivevals$customInputBoxesText[minIndex+ind]
+#         output$selectUI_9<-renderUI(textInput("testText9", label = NULL, value = val))
+#       }else{
+#         if(n>=ind){
+#           print(paste(ind,"b"))
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText9
+#           output$selectUI_9 <- renderUI(createChoiceButtons(ind, facts[[factnum[minIndex+ind]]], selectnum[minIndex+ind], reactivevals$choiceList[[minIndex+ind]]))
+#           output$select9_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+ind])),1:3], collapse=" ")))
+#         }else{
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText9
+#           output$selectUI_9<-renderUI(return())
+#           output$select9_info<-renderPrint(invisible())
+#         }
+#       }}
+#     ind=10
+#     print(ind)
+#     if(oldCheckBoxes[minIndex+ind]!=input$check10){  
+#       if(input$check10){
+#         print(paste(ind,"a"))
+#         val=reactivevals$customInputBoxesText[minIndex+ind]
+#         output$selectUI_10<-renderUI(textInput("testText10", label = NULL, value = val))
+#       }else{
+#         if(n>=ind){
+#           print(paste(ind,"b"))
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText10
+#           output$selectUI_10 <- renderUI(createChoiceButtons(ind, facts[[factnum[minIndex+ind]]], selectnum[minIndex+ind], reactivevals$choiceList[[minIndex+ind]]))
+#           output$select10_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+ind])),1:3], collapse=" ")))
+#         }else{
+#           reactivevals$customInputBoxesText[minIndex+ind]=input$testText10
+#           output$selectUI_10<-renderUI(return())
+#           output$select10_info<-renderPrint(invisible())
+#         }
+#       }}
+    print("end")
+  })
+  }
+  
+  # generate buttons for users to choos from database
   choiceButtons<-observe({
     if(DEBUG) print("choiceButtons")
     if(is.null(nutriTrackFacts()))
@@ -213,7 +508,19 @@ shinyServer(function(input, output, session){
     selectnum=reactivevals$itemSelection
     n=min(length(factnum), page*10+10)-minIndex
     
+    output$check1<-renderUI(checkboxInput("check1", label = "", value = FALSE))
+    output$check2<-renderUI(checkboxInput("check2", label = "", value = FALSE))
+    output$check3<-renderUI(checkboxInput("check3", label = "", value = FALSE))
+    output$check4<-renderUI(checkboxInput("check4", label = "", value = FALSE))
+    output$check5<-renderUI(checkboxInput("check5", label = "", value = FALSE))
+    output$check6<-renderUI(checkboxInput("check6", label = "", value = FALSE))
+    output$check7<-renderUI(checkboxInput("check7", label = "", value = FALSE))
+    output$check8<-renderUI(checkboxInput("check8", label = "", value = FALSE))
+    output$check9<-renderUI(checkboxInput("check9", label = "", value = FALSE))
+    output$check10<-renderUI(checkboxInput("check10", label = "", value = FALSE))
+    
     if(n>=1){
+      #output$check1<-renderUI(checkboxInput("check1", label = "", value = FALSE))
       output$selectUI_1 <- renderUI(createChoiceButtons(1,facts[[factnum[minIndex+1]]], selectnum[minIndex+1], reactivevals$choiceList[[minIndex+1]]))
       output$select1_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+1])),1:3], collapse=" ")))
     }else{
@@ -221,6 +528,7 @@ shinyServer(function(input, output, session){
       output$select1_info<-renderPrint(invisible())
     }
     if(n>=2){
+      #output$check2<-renderUI(checkboxInput("check2", label = "", value = FALSE))
       output$selectUI_2 <- renderUI(createChoiceButtons(2,facts[[factnum[minIndex+2]]], selectnum[minIndex+2], reactivevals$choiceList[[minIndex+2]]))
       output$select2_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+2])),1:3], collapse=" ")))
     }else{
@@ -228,6 +536,7 @@ shinyServer(function(input, output, session){
       output$select2_info<-renderPrint(invisible())
     }
     if(n>=3){
+      #output$check3<-renderUI(checkboxInput("check3", label = "", value = FALSE))
       output$selectUI_3 <- renderUI(createChoiceButtons(3,facts[[factnum[minIndex+3]]], selectnum[minIndex+3], reactivevals$choiceList[[minIndex+3]]))
       output$select3_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+3])),1:3], collapse=" ")))
     }else{
@@ -235,6 +544,7 @@ shinyServer(function(input, output, session){
       output$select3_info<-renderPrint(invisible())
     }
     if(n>=4){
+      #output$check4<-renderUI(checkboxInput("check4", label = "", value = FALSE))
       output$selectUI_4 <- renderUI(createChoiceButtons(4,facts[[factnum[minIndex+4]]], selectnum[minIndex+4], reactivevals$choiceList[[minIndex+4]]))
       output$select4_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+4])),1:3], collapse=" ")))
     }else{
@@ -242,6 +552,7 @@ shinyServer(function(input, output, session){
       output$select4_info<-renderPrint(invisible())
     }
     if(n>=5){
+      #output$check5<-renderUI(checkboxInput("check5", label = "", value = FALSE))
       output$selectUI_5 <- renderUI(createChoiceButtons(5,facts[[factnum[minIndex+5]]], selectnum[minIndex+5], reactivevals$choiceList[[minIndex+5]]))
       output$select5_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+5])),1:3], collapse=" ")))
     }else{
@@ -249,6 +560,7 @@ shinyServer(function(input, output, session){
       output$select5_info<-renderPrint(invisible())
     }
     if(n>=6){
+      #output$check6<-renderUI(checkboxInput("check6", label = "", value = FALSE))
       output$selectUI_6 <- renderUI(createChoiceButtons(6,facts[[factnum[minIndex+6]]], selectnum[minIndex+6], reactivevals$choiceList[[minIndex+6]]))
       output$select6_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+6])),1:3], collapse=" ")))
     }else{
@@ -256,6 +568,7 @@ shinyServer(function(input, output, session){
       output$select6_info<-renderPrint(invisible())
     }
     if(n>=7){
+      #output$check7<-renderUI(checkboxInput("check7", label = "", value = FALSE))
       output$selectUI_7 <- renderUI(createChoiceButtons(7,facts[[factnum[minIndex+7]]], selectnum[minIndex+7], reactivevals$choiceList[[minIndex+7]]))
       output$select7_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+7])),1:3], collapse=" ")))
     }else{
@@ -263,6 +576,7 @@ shinyServer(function(input, output, session){
       output$select7_info<-renderPrint(invisible())
     }
     if(n>=8){
+      #output$check8<-renderUI(checkboxInput("check8", label = "", value = FALSE))
       output$selectUI_8 <- renderUI(createChoiceButtons(8,facts[[factnum[minIndex+8]]], selectnum[minIndex+8], reactivevals$choiceList[[minIndex+8]]))
       output$select8_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+8])),1:3], collapse=" ")))
     }else{
@@ -270,6 +584,7 @@ shinyServer(function(input, output, session){
       output$select8_info<-renderPrint(invisible())
     }
     if(n>=9){
+      #output$check9<-renderUI(checkboxInput("check9", label = "", value = FALSE))
       output$selectUI_9 <- renderUI(createChoiceButtons(9,facts[[factnum[minIndex+9]]], selectnum[minIndex+9], reactivevals$choiceList[[minIndex+9]]))
       output$select9_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+9])),1:3], collapse=" ")))
     }else{
@@ -277,6 +592,7 @@ shinyServer(function(input, output, session){
       output$select9_info<-renderPrint(invisible())
     }
     if(n>=10){
+      #output$check10<-renderUI(checkboxInput("check10", label = "", value = FALSE))
       output$selectUI_10 <- renderUI(createChoiceButtons(10,facts[[factnum[minIndex+10]]], selectnum[minIndex+10], reactivevals$choiceList[[minIndex+10]]))
       output$select10_info<-renderPrint(cat(paste(recipeMatrix()[as.numeric(names(factnum[minIndex+10])),1:3], collapse=" ")))
     }else{
@@ -436,7 +752,7 @@ shinyServer(function(input, output, session){
     if(DEBUG) print('output$submitButton')
     
     if(reactivevals$serverBusy) return()
-    return(actionButton("submit", label = "Continue"))
+    return(actionButton("submit", label = "Go To Step 2"))
   })
   output$previousButton<-renderUI({
     if(ceiling(length(reactivevals$factIndex)/10)<=1) return()
@@ -513,7 +829,7 @@ shinyServer(function(input, output, session){
     }
     
     isolate({
-      res=rescaleItems(input$mc_inputBox, NULL, input$mc_scale, reactivevals$mc_servings, input$mc_unitsBox)
+      res=rescaleItems(input$mc_input, NULL, input$mc_scale, reactivevals$mc_servings, input$mc_units)
       tmp=unname(res['rescaleText'])
       if(is.null(tmp)){
         output$mc_rescaledText<-renderPrint(invisible())
@@ -530,7 +846,7 @@ shinyServer(function(input, output, session){
     }
     
     isolate({
-      res=rescaleItems(input$mc_inputBox, NULL, input$mc_scale, reactivevals$mc_servings, input$mc_unitsBox, TRUE)
+      res=rescaleItems(input$mc_input, NULL, input$mc_scale, reactivevals$mc_servings, input$mc_units, TRUE)
       if(is.null(res)){ # error: scale input is invalid
         output$mc_rescaledText<-renderPrint(invisible())
         return()
@@ -552,7 +868,7 @@ shinyServer(function(input, output, session){
       return()
     }
     isolate({
-      res=rescaleItems(input$mc_inputBox, input$mc_unitsBox, input$mc_scale, reactivevals$mc_servings, input$mc_unitsBox)
+      res=rescaleItems(input$mc_input, input$mc_units, input$mc_scale, reactivevals$mc_servings, input$mc_units)
       if(is.null(res)){ # error: scale input is invalid
         output$mc_rescaledText<-renderPrint(invisible())
         return()

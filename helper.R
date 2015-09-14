@@ -151,7 +151,8 @@ cleanItemInput<-function(item)
 {
   item=gsub(" +$", "", gsub("^ +", "", item)) # remove trailing and leading whitespace
   item=sub("^pinch ", "1/8 tsp ", item, ignore.case=TRUE)
-  item=gsub("(fl oz)|(fl. oz)|(fluid ounce) ", "floz ", item)
+  item=gsub("(fl oz)|(fl. oz)|(fluid ounce) ", "floz ", item, ignore.case=TRUE)
+  item=gsub("(fresh)|(chopped)|(finely)", "", item, ignore.case=TRUE)
   item=sub("^([[:digit:] ]*)\\(([[:digit:]]+)([^\\)]*)\\)", "(\\1)*\\2 \\3", item) # split up form 1 (8 oz) item -> 1*8 oz item
   item=sub("^([[:digit:] ]*)dozen", "\\1*12", item, ignore.case=TRUE)
   return(item)
@@ -407,6 +408,10 @@ cbindFacts<-function(facts, recipeMatrix, selectionIndex, factIndex){
 # > i = which selection box is this for, 1,2,3,...,10
 # > li = nutrition facts list
 createChoiceButtons<-function(i, li, selectionIndex, choices){
+  print("createChoiceButtons")
+  print(i)
+  print(selectionIndex)
+  print(choices)
   if(is.null(li) | length(choices)==0){
     return(NULL)
   }else{
@@ -480,5 +485,5 @@ rescaleItems<-function(input, targetUnits=NULL, scale, servings_old, newUnits, o
 removeEmptyLines<-function(string){
   if(is.null(string)) return('')
   lines=unlist(strsplit(string, split="\n"))
-  return(lines[lines!=''])
+  return(paste(lines[lines!=''], collapse="\n"))
 }
